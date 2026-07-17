@@ -124,12 +124,30 @@ await import('../learning-path.jsx');
 await import('../onboarding-welcome.jsx');
 await import('../guided-tour.jsx');
 
+// 详细小课分片：每个主题/学段一个文件，Object.assign 覆盖 CHEM_LESSON 对应节点的完整版小课
+// （在 knowledge-lesson.js 组装出基础 CHEM_LESSON 之后加载，逐个覆盖为最详细版本）
+const lessonFragments = import.meta.glob('../lessons/*.js');
+for (const path of Object.keys(lessonFragments).sort()) {
+  await lessonFragments[path]();
+}
+
 function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [themeFilter, setThemeFilter] = useState(() =>
     Object.fromEntries(Object.keys(window.CHEM_THEMES || {}).map(k => [k, true]))
   );
+  // 学段切换：'junior' = 只看初中, 'all' = 初高中融合
+  const [stageFilter, setStageFilter] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chemistry-stage');
+      if (saved === 'junior' || saved === 'all') return saved;
+      const prof = JSON.parse(localStorage.getItem('chemistry-user-profile') || 'null');
+      const rank = prof ? (prof.gradeRank || 0) : 0;
+      return rank >= 4 ? 'all' : 'junior';
+    } catch { return 'junior'; }
+  });
+  useEffect(() => { try { localStorage.setItem('chemistry-stage', stageFilter); } catch {} }, [stageFilter]);
   const [mastered, setMastered] = useState(() => {
     try { return JSON.parse(localStorage.getItem('chemistry-mastery') || '{}'); }
     catch { return {}; }
@@ -168,18 +186,29 @@ function App() {
     setMastered(m => ({ ...m, [id]: !m[id] }));
   }, []);
 
-  // 推荐算法
+  // 当前学段可见的节点集（只看初中时过滤掉高中节点）
+  const stageNodes = React.useMemo(() =>
+    stageFilter === 'all'
+      ? window.CHEM_NODES
+      : window.CHEM_NODES.filter(n => ((window.CHEM_GRADE_RANK || {})[(window.CHEM_NODE_GRADE || {})[n.id]] || 0) < 4),
+    [stageFilter]
+  );
+
+  // 推荐算法（只在当前学段内推荐）
   const recommended = React.useMemo(() =>
     window.computeRecommendations
-      ? window.computeRecommendations(window.CHEM_NODES, mastered, userProfile?.grade)
+      ? window.computeRecommendations(stageNodes, mastered, userProfile?.grade)
       : [],
-    [mastered, userProfile]
+    [mastered, userProfile, stageNodes]
   );
 
   // Onboarding 完成回调
   const handleOnboardingComplete = useCallback((profile, initialMastered) => {
     setUserProfile(profile);
     localStorage.setItem('chemistry-user-profile', JSON.stringify(profile));
+    // 选了高中年级，自动切到初高中融合
+    const rank = profile?.gradeRank || 0;
+    setStageFilter(rank >= 4 ? 'all' : 'junior');
     if (initialMastered) {
       setMastered(m => ({ ...m, ...initialMastered }));
     }
@@ -208,8 +237,8 @@ function App() {
   }, [guidedStep]);
 
   const node = selectedId ? window.CHEM_NODE_BY_ID[selectedId] : null;
-  const masteredCount = Object.values(mastered).filter(Boolean).length;
-  const totalCount = window.CHEM_NODES.length;
+  const masteredCount = stageNodes.filter(n => mastered[n.id]).length;
+  const totalCount = stageNodes.length;
 
   useEffect(() => {
     const onKey = (e) => {
@@ -230,8 +259,8 @@ function App() {
         <div className="app-brand">
           <span className="app-glyph">✦</span>
           <div className="app-meta">
-            <div className="app-title">初中化学 · 知识星空</div>
-            <div className="app-sub">{totalCount} 颗星 · {window.CHEM_EDGES.length} 条思想线 · 不分年级，只看依赖</div>
+            <div className="app-title">{stageFilter === 'all' ? '初中 + 高中化学' : '初中化学'} · 知识星空</div>
+            <div className="app-sub">{totalCount} 颗星 · {stageFilter === 'all' ? '初高中融合 · 按依赖连线' : '只看初中 · 按依赖连线'}</div>
           </div>
         </div>
         <div className="app-controls">
@@ -263,6 +292,15 @@ function App() {
               </button>
             ))}
           </div>
+          <div className="app-stage" style={{ display: 'inline-flex', gap: 4, padding: 3, borderRadius: 999, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.14)' }}>
+            {[['junior', '只看初中'], ['all', '初高中融合']].map(([v, label]) => (
+              <button key={v} onClick={() => setStageFilter(v)}
+                title={v === 'all' ? '显示初中+高中全部知识点' : '只显示初中知识点'}
+                style={{ padding: '6px 13px', borderRadius: 999, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, letterSpacing: '0.02em', background: stageFilter === v ? 'rgba(220,38,38,0.9)' : 'transparent', color: stageFilter === v ? '#fff' : 'rgba(255,255,255,0.72)', fontWeight: stageFilter === v ? 600 : 400, transition: 'background .15s' }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -275,6 +313,7 @@ function App() {
           searchQuery={searchQuery}
           themeFilter={themeFilter}
           recommended={recommended}
+          stageFilter={stageFilter}
         />
         {node && (
           <window.NodeDetail

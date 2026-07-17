@@ -3,11 +3,12 @@
 
 function OnboardingWelcome({ onComplete }) {
   const [step, setStep] = useState(1);       // 1=学段选择, 2=快速标记
-  const [grade, setGrade] = useState(null);   // '上'|'下'|'free'
+  const [grade, setGrade] = useState(null);   // '上'|'下'|'g1'|'g2'|'g3'|'free'
   const [marked, setMarked] = useState({});
 
-  // 化学集中在九年级，按"九上→九下"累进显示
-  const gradeRank = grade === '上' ? 1 : grade === '下' ? 2 : 9;
+  // 学段值 → 累进 rank：初中九上/九下 = 1/2，高中三年 = 4/5/6（与 main.jsx 的 stageFilter 阈值 4 对齐）
+  const GRADE_VALUE_RANK = { '上': 1, '下': 2, 'g1': 4, 'g2': 5, 'g3': 6 };
+  const gradeRank = GRADE_VALUE_RANK[grade] || 9;
   const markableNodes = React.useMemo(() => {
     if (!grade || grade === 'free') return [];
     const G = window.CHEM_NODE_GRADE || {}, R = window.CHEM_GRADE_RANK || {};
@@ -29,7 +30,7 @@ function OnboardingWelcome({ onComplete }) {
     setGrade(g);
     if (g === 'free') {
       // 自由探索模式直接完成
-      const profile = { grade: g, createdAt: Date.now() };
+      const profile = { grade: g, gradeRank: 0, createdAt: Date.now() };
       onComplete(profile, null);
     } else {
       setStep(2);
@@ -43,7 +44,7 @@ function OnboardingWelcome({ onComplete }) {
 
   // 完成标记
   const handleFinish = () => {
-    const profile = { grade, createdAt: Date.now() };
+    const profile = { grade, gradeRank: GRADE_VALUE_RANK[grade] || 0, createdAt: Date.now() };
     const masteredMap = Object.keys(marked).reduce((acc, id) => {
       if (marked[id]) acc[id] = true;
       return acc;
@@ -53,13 +54,16 @@ function OnboardingWelcome({ onComplete }) {
 
   // 跳过标记（新手）
   const handleSkip = () => {
-    const profile = { grade, createdAt: Date.now() };
+    const profile = { grade, gradeRank: GRADE_VALUE_RANK[grade] || 0, createdAt: Date.now() };
     onComplete(profile, null);
   };
 
   const gradeLabels = {
     '上': '九年级 · 上',
     '下': '九年级 · 下',
+    'g1': '高一',
+    'g2': '高二',
+    'g3': '高三',
   };
   const gradeShort = { '上': '九上', '下': '九下' };
 
@@ -71,14 +75,22 @@ function OnboardingWelcome({ onComplete }) {
             <div className="ob-glyph">✦</div>
             <h1 className="ob-title">欢迎来到知识星空</h1>
             <p className="ob-desc">
-              初中化学的 {window.CHEM_NODES.length} 个知识点，按「依赖关系」连成星座。
-              <br />选择你的学段，我来推荐学习路线。
+              初中与高中化学知识点，按「依赖关系」连成星座。
+              <br />选择你的学段，我来推荐学习路线（初中学段默认只看初中，高中年级自动开启初高中融合）。
             </p>
             <div className="ob-grades">
               {['上', '下'].map(g => (
                 <button key={g} className="ob-gradeBtn" onClick={() => handleGradeSelect(g)}>
                   <span className="ob-gradeNum">{gradeShort[g]}</span>
                   <span className="ob-gradeLabel">{gradeLabels[g]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ob-grades" style={{ marginTop: 8 }}>
+              {['g1', 'g2', 'g3'].map(g => (
+                <button key={g} className="ob-gradeBtn" onClick={() => handleGradeSelect(g)}>
+                  <span className="ob-gradeNum" style={{ fontSize: '1.15rem' }}>{gradeLabels[g]}</span>
+                  <span className="ob-gradeLabel">高中</span>
                 </button>
               ))}
             </div>
