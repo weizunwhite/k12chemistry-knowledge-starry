@@ -65,6 +65,9 @@ const CHEM_FIGURE_BANK = {
   'metal-activity': '<svg viewBox="0 0 300 110" xmlns="http://www.w3.org/2000/svg"><line x1="16" y1="55" x2="284" y2="55" stroke="#16a34a" stroke-width="2"/><path d="M284 55 l-10 -5 v10 z" fill="#16a34a"/><text x="20" y="40" fill="#86efac" font-size="11">活动性强</text><text x="240" y="40" fill="#94a3b8" font-size="11">活动性弱</text><text x="16" y="78" fill="#e2e8f0" font-size="11">K Ca Na Mg Al Zn Fe</text><text x="170" y="78" fill="#fca5a5" font-size="11">(H)</text><text x="196" y="78" fill="#e2e8f0" font-size="11">Cu Hg Ag Pt Au</text><text x="150" y="100" text-anchor="middle" fill="#94a3b8" font-size="11">排在 (H) 前的金属才能置换出酸中的氢</text></svg>',
   'molecule-atom': '<svg viewBox="0 0 280 130" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="55" r="13" fill="#60a5fa"/><circle cx="60" cy="45" r="8" fill="#f87171"/><circle cx="60" cy="68" r="8" fill="#f87171"/><text x="50" y="100" text-anchor="middle" fill="#94a3b8" font-size="11">水分子 H₂O</text><text x="120" y="60" fill="#e2e8f0" font-size="20">→</text><text x="120" y="40" fill="#94a3b8" font-size="10">通电分解</text><circle cx="190" cy="40" r="8" fill="#f87171"/><circle cx="210" cy="40" r="8" fill="#f87171"/><circle cx="185" cy="75" r="6" fill="#60a5fa"/><circle cx="200" cy="75" r="6" fill="#60a5fa"/><circle cx="215" cy="75" r="6" fill="#60a5fa"/><circle cx="230" cy="75" r="6" fill="#60a5fa"/><text x="205" y="105" text-anchor="middle" fill="#94a3b8" font-size="11">原子重新组合成 O₂、H₂</text></svg>',
 };
+// 暴露给 node-detail 做兜底：lessons/*.js 分片整条覆盖小课时会丢掉 figure 字段，
+// 渲染时若小课本身没有 figure，就回退到这里查
+window.CHEM_FIGURE_BANK = CHEM_FIGURE_BANK;
 
 // 关键计算节点的具体例题（覆盖生成的通用例题）
 const CHEM_WORKED_BANK = {
