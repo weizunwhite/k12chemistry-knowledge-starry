@@ -131,6 +131,12 @@ for (const path of Object.keys(lessonFragments).sort()) {
   await lessonFragments[path]();
 }
 
+// 题库分片：追加合并进 CHEM_QUIZ_SEED（必须在 knowledge-quiz-seed.js 之后加载）
+const quizFragments = import.meta.glob('../quiz/*.js');
+for (const path of Object.keys(quizFragments).sort()) {
+  await quizFragments[path]();
+}
+
 function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
