@@ -116,6 +116,8 @@ await import('../knowledge-history.js');
 await import('../knowledge-lesson.js');
 await import('../knowledge-subnodes.js');
 await import('../knowledge-quiz-seed.js');
+// 节点配图注册表（public/media/ 本地文件 + Wikimedia Commons credit）
+await import('../chem-media.js');
 await import('../interactive-widgets.jsx');
 await import('../assessment.jsx');
 await import('../node-detail.jsx');

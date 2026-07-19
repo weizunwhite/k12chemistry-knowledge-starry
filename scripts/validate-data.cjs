@@ -6,8 +6,10 @@ const root = path.resolve(__dirname, '..');
 const ctx = { window: {} };
 vm.createContext(ctx);
 
-for (const file of ['knowledge-data.js', 'knowledge-history.js', 'knowledge-lesson.js', 'knowledge-subnodes.js', 'knowledge-quiz-seed.js']) {
-  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx, { filename: file });
+for (const file of ['knowledge-data.js', 'knowledge-history.js', 'knowledge-lesson.js', 'knowledge-subnodes.js', 'knowledge-quiz-seed.js', 'chem-media.js']) {
+  const abs = path.join(root, file);
+  if (!fs.existsSync(abs)) continue;
+  vm.runInContext(fs.readFileSync(abs, 'utf8'), ctx, { filename: file });
 }
 // 分片：lessons/（整条覆盖 CHEM_LESSON 条目）与 quiz/（追加合并进 CHEM_QUIZ_SEED）
 for (const dir of ['lessons', 'quiz']) {
@@ -127,6 +129,35 @@ for (const node of nodes) {
   }
 }
 
+// ── 配图校验：CHEM_MEDIA 键↔public/media 文件双向、>5KB、credit 非空 ──
+// skip 节点不写入注册表，故自动豁免；仅校验已登记条目
+const media = w.CHEM_MEDIA || {};
+let mediaCount = 0;
+if (media && typeof media === 'object') {
+  mediaCount = Object.keys(media).length;
+  for (const [id, m] of Object.entries(media)) {
+    if (!ids.has(id)) fail(`Media uses unknown node id: ${id}`);
+    if (!m || !m.file || !m.title) { fail(`Media ${id} missing file/title`); continue; }
+    if (!m.credit) fail(`Media ${id} missing credit (版权来源必填)`);
+    // file 约定为 media/xxx.jpg（public 下相对路径）
+    const rel = String(m.file).replace(/^\//, '');
+    const abs = path.join(root, 'public', rel);
+    if (!fs.existsSync(abs)) fail(`Media ${id} file not found: public/${rel}`);
+    else if (fs.statSync(abs).size < 5 * 1024) fail(`Media ${id} file too small (<5KB): public/${rel}`);
+  }
+  // 反向：media 目录里不该有未登记的孤儿文件
+  const mediaDir = path.join(root, 'public/media');
+  if (fs.existsSync(mediaDir)) {
+    const registered = new Set(
+      Object.values(media).map(m => path.basename(String(m.file || '')))
+    );
+    for (const f of fs.readdirSync(mediaDir)) {
+      if (f.startsWith('_') || f.startsWith('.')) continue;
+      if (!registered.has(f)) warning(`Orphan media file (not in CHEM_MEDIA): public/media/${f}`);
+    }
+  }
+}
+
 // ── 内容覆盖率报告（不阻塞，只提醒缺口在哪）──
 function coverage(label, has) {
   const missing = nodes.filter(n => !has(n)).map(n => n.id);
@@ -139,6 +170,7 @@ const coverageReport = [
   coverage('quiz≥2 ', n => Array.isArray(quiz[n.id]) && quiz[n.id].length >= 2),
   coverage('warmup ', n => lessons[n.id] && lessons[n.id].warmup),
   coverage('figure ', n => figureBank[n.id] || (lessons[n.id] && lessons[n.id].figure)),
+  coverage('media  ', n => !!(media[n.id] && media[n.id].file)),
 ];
 
 if (warn.length) {
@@ -153,3 +185,4 @@ if (errors.length) {
 console.log('内容覆盖率:\n  ' + coverageReport.join('\n  '));
 const quizTotal = Object.values(quiz).reduce((s, v) => s + v.length, 0);
 console.log(`Data OK: ${nodes.length} nodes, ${edges.length} edges, ${Object.keys(lessons).length} lessons, ${Object.keys(quiz).length} quiz nodes / ${quizTotal} questions, ${Object.keys(figureBank).length} bank figures.`);
+console.log(`Media: ${mediaCount}/${nodes.length} nodes have images.`);

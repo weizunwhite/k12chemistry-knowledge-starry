@@ -326,6 +326,8 @@ function NodeDetail({ node, onClose, onJump, mastered, onToggleMastery }) {
   const prereqs = (node.prereqs || []).map(id => window.CHEM_NODE_BY_ID[id]).filter(Boolean);
   const leadsTo = window.CHEM_NODES.filter(n => (n.prereqs || []).includes(node.id));
   const connections = (node.connections || []).map(id => window.CHEM_NODE_BY_ID[id]).filter(Boolean);
+  // 节点配图：来自 CHEM_MEDIA 注册表（public/media/），无该节点条目则不渲染
+  const mediaEntry = (window.CHEM_MEDIA && window.CHEM_MEDIA[node.id]) || null;
 
   return (
     <div
@@ -389,6 +391,21 @@ function NodeDetail({ node, onClose, onJump, mastered, onToggleMastery }) {
                           onReveal={() => setLessonRevealed(true)} />
             )}
             {(!warmup || lessonRevealed) && (<>
+            {/* 节点配图：来自 CHEM_MEDIA 注册表（public/media/），无图不渲染 */}
+            {mediaEntry && mediaEntry.file && (
+              <section className="nd-section nd-media">
+                <img
+                  src={mediaEntry.file.startsWith('/') ? mediaEntry.file : `/${mediaEntry.file}`}
+                  alt={mediaEntry.title || node.name}
+                  loading="lazy"
+                  className="nd-mediaImg"
+                />
+                <div className="nd-mediaCaption">
+                  <span className="nd-mediaTitle">{mediaEntry.title || node.name}</span>
+                  {mediaEntry.credit && <span className="nd-mediaCredit">{mediaEntry.credit}</span>}
+                </div>
+              </section>
+            )}
             {history && (
               <section className="nd-section">
                 <div className="nd-sectionLabel nd-histLabel">
